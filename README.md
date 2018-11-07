@@ -1,4 +1,4 @@
-# CloudFormation Templates for Getting Started Tutorial with AWS Elactis Load Balacing
+# CloudFormation Templates for Getting Started Tutorial with AWS Elastic Load Balacing
 - ### Classic load balancer: 
   
   - **Create stack**:
