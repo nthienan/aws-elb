@@ -1,12 +1,15 @@
 sudo: required
 language: python3.6
-services:
-  - docker
 env:
   global:
     - S3_BUCKET=nthienan-public
     - S3_PREFIX=cloudformation/aws-elb
 install: true
+
+before_script:
+  - pip install --user yamllint
+script:
+  - yamllint *.yaml *.yml
 
 before_deploy:
   - pip install --user awscli
