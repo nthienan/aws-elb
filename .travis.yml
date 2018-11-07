@@ -9,7 +9,7 @@ install: true
 before_script:
   - pip install --user yamllint
 script:
-  - yamllint *.yaml *.yml
+  - yamllint *.yaml *.yml | true
 
 before_deploy:
   - pip install --user awscli
