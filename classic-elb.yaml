@@ -1,0 +1,260 @@
+AWSTemplateFormatVersion: 2010-09-09
+Description: Getting Started with Application Elastic Load Balancer
+Parameters:
+  Region:
+    Type: String
+    Description: AWS Region
+    Default: ap-southeast-1
+    AllowedValues:
+    - us-east-1
+    - us-east-2
+    - us-weast-1
+    - us-weast-2
+    - ap-south-1
+    - ap-northeast-1
+    - ap-northeast-2
+    - ap-southeast-1
+    - ap-southeast-2
+    - ca-central-1
+    - eu-central-1
+    - eu-west-1
+    - eu-west-2
+    - eu-west-3
+    - sa-east-1
+  KeyName:
+    Type: AWS::EC2::KeyPair::KeyName
+    Description: Name of an existing EC2 KeyPair to enable SSH access into servers
+Mappings:
+  AvailabilityZoneMap:
+    us-east-1:
+      az1: us-east-1e
+      az2: us-east-1f
+    us-east-2:
+      az1: us-east-2b
+      az2: us-east-2c
+    us-weast-1:
+      az1: us-west-1a
+      az2: us-west-1b
+    us-weast-2:
+      az1: us-west-2b
+      az2: us-west-2c
+    ap-south-1:
+      az1: ap-south-1a
+      az2: ap-south-1b
+    ap-northeast-1:
+      az1: ap-northeast-1c
+      az2: ap-northeast-1d
+    ap-northeast-2:
+      az1: ap-northeast-2a
+      az2: ap-northeast-2c
+    ap-southeast-1:
+      az1: ap-southeast-1b
+      az2: ap-southeast-1c
+    ap-southeast-2:
+      az1: ap-southeast-2b
+      az2: ap-southeast-2c
+  ImageMap:
+    us-east-1:
+      Ubuntu1804: ami-0c5199d385b432989
+    us-east-2:
+      Ubuntu1804: ami-0c5199d385b432989
+    us-weast-1:
+      Ubuntu1804: ami-0c5199d385b432989
+    us-weast-2:
+      Ubuntu1804: ami-0c5199d385b432989
+    ap-south-1:
+      Ubuntu1804: ami-0c5199d385b432989
+    ap-northeast-1:
+      Ubuntu1804: ami-0c5199d385b432989
+    ap-northeast-2:
+      Ubuntu1804: ami-0c5199d385b432989
+    ap-southeast-1:
+      Ubuntu1804: ami-0c5199d385b432989
+    ap-southeast-2:
+      Ubuntu1804: ami-0c5199d385b432989
+Resources:
+  VPC:
+    Type: AWS::EC2::VPC
+    Properties:
+      CidrBlock: 10.10.0.0/16
+      EnableDnsHostnames: true
+      Tags:
+      - Key: Name
+        Value: Application Load Balancer VPC
+  InternetGateway:
+    Type: AWS::EC2::InternetGateway
+    Properties:
+      Tags:
+        - Key: Name
+          Value: Application Load Balancer
+  VPCGatewayAttachment:
+    Type: AWS::EC2::VPCGatewayAttachment
+    Properties:
+      VpcId: !Ref VPC
+      InternetGatewayId: !Ref InternetGateway
+  RouteTable:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref VPC
+      Tags:
+        - Key: Name
+          Value: Application Load Balancer
+  PublicRoutingRule:
+    Type: AWS::EC2::Route
+    Properties:
+      DestinationCidrBlock: 0.0.0.0/0
+      GatewayId: !Ref InternetGateway
+      RouteTableId: !Ref RouteTable
+    DependsOn: VPCGatewayAttachment
+  PublicSubnetAz1:
+    Type: AWS::EC2::Subnet
+    Properties:
+      AvailabilityZone: !FindInMap [AvailabilityZoneMap, !Ref Region, az1]
+      CidrBlock: 10.10.1.0/24
+      MapPublicIpOnLaunch: true
+      VpcId: !Ref VPC
+      Tags:
+      - Key: Name
+        Value: Public Subnet AZ-1 (10.10.1.0/24)
+  RouteTableAssociationPublicSubnet1:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      RouteTableId: !Ref RouteTable
+      SubnetId: !Ref PublicSubnetAz1
+  PrivateSubnetAz1:
+    Type: AWS::EC2::Subnet
+    Properties:
+      AvailabilityZone: !FindInMap [AvailabilityZoneMap, !Ref Region, az1]
+      CidrBlock: 10.10.101.0/24
+      MapPublicIpOnLaunch: false
+      VpcId: !Ref VPC
+      Tags:
+      - Key: Name
+        Value: Private Subnet AZ-1 (10.10.101.0/24)
+  PublicSubnetAz2:
+    Type: AWS::EC2::Subnet
+    Properties:
+      AvailabilityZone: !FindInMap [AvailabilityZoneMap, !Ref Region, az2]
+      CidrBlock: 10.10.2.0/24
+      MapPublicIpOnLaunch: true
+      VpcId: !Ref VPC
+      Tags:
+      - Key: Name
+        Value: Public Subnet AZ-2 (10.10.2.0/24)
+  RouteTableAssociationPublicSubnet2:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      RouteTableId: !Ref RouteTable
+      SubnetId: !Ref PublicSubnetAz2
+  PrivateSubnetAz2:
+    Type: AWS::EC2::Subnet
+    Properties:
+      AvailabilityZone: !FindInMap [AvailabilityZoneMap, !Ref Region, az2]
+      CidrBlock: 10.10.102.0/24
+      MapPublicIpOnLaunch: false
+      VpcId: !Ref VPC
+      Tags:
+      - Key: Name
+        Value: Private Subnet AZ-2 (10.10.102.0/24)
+  WebServer1:
+    Type: AWS::EC2::Instance
+    Properties:
+      ImageId: !FindInMap [ImageMap, !Ref Region, Ubuntu1804]
+      InstanceType: t2.micro
+      KeyName: !Ref KeyName
+      SecurityGroupIds:
+      - !GetAtt [WebServerSecurityGroup, GroupId]
+      SubnetId: !Ref PublicSubnetAz1
+      UserData: 
+        Fn::Base64: !Sub |
+          #!/bin/bash
+          sudo apt-get update -y
+          sudo apt-get install -y nginx
+      Tags:
+        - Key: Name
+          Value: ALB - Web server 1
+    DependsOn: WebServerSecurityGroup
+  WebServer2:
+    Type: AWS::EC2::Instance
+    Properties:
+      ImageId: !FindInMap [ImageMap, !Ref Region, Ubuntu1804]
+      InstanceType: t2.micro
+      KeyName: !Ref KeyName
+      SecurityGroupIds:
+      - !GetAtt [WebServerSecurityGroup, GroupId]
+      SubnetId: !Ref PublicSubnetAz2
+      UserData: 
+        Fn::Base64: !Sub |
+          #!/bin/bash
+          sudo apt-get update -y
+          sudo apt-get install -y apache2
+      Tags:
+        - Key: Name
+          Value: ALB - Web server 2
+    DependsOn: WebServerSecurityGroup
+  WebServerSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Security group for web servers
+      VpcId: !Ref VPC
+      SecurityGroupIngress:
+      - CidrIp: 0.0.0.0/0
+        Description: Allow SSH
+        FromPort: 22
+        ToPort: 22
+        IpProtocol: tcp
+      - CidrIp: 0.0.0.0/0
+        Description: Allow HTTP traffic
+        FromPort: 80
+        ToPort: 80
+        IpProtocol: tcp
+      Tags:
+        - Key: Name
+          Value: ALB - Web Server Security Group
+  ClassicLoadBalancer:
+    Type: AWS::ElasticLoadBalancing::LoadBalancer
+    Properties:
+      HealthCheck:
+        HealthyThreshold: 3
+        Interval: 60
+        Target: HTTP:80/
+        Timeout: 10
+        UnhealthyThreshold: 3
+      Instances:
+      - !Ref WebServer1
+      - !Ref WebServer2
+      Listeners:
+      - InstancePort: 80
+        InstanceProtocol: HTTP
+        LoadBalancerPort: 80
+        Protocol: HTTP
+      Scheme: internet-facing
+      CrossZone: true
+      SecurityGroups:
+      - !Ref LoadBalancingSecurityGroup
+      Subnets:
+      - !Ref PublicSubnetAz1
+      - !Ref PublicSubnetAz2
+      Tags:
+        - Key: Name
+          Value: Application Load Balancer Getting Stared
+  LoadBalancingSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Security group for load balacer
+      VpcId: !Ref VPC
+      SecurityGroupIngress:
+      - CidrIp: 0.0.0.0/0
+        Description: Allow HTTP traffic
+        FromPort: 80
+        ToPort: 80
+        IpProtocol: tcp
+      Tags:
+        - Key: Name
+          Value: Load balancer security group
+Outputs:
+  AccessURL:
+    Value: !Join
+    - ""
+    - - http://
+      - !GetAtt [ClassicLoadBalancer, DNSName]
